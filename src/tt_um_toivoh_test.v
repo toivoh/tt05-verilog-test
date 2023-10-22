@@ -36,7 +36,7 @@ module tt_um_toivoh_test #( parameter DIVIDER_BITS=7, parameter OCT_BITS=3, para
 	wire reset = !rst_n;
 
 	// Configuration input
-	assign uio_oe = 0; // Let the bidirectional signals be inputs
+	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
 	wire [7:0] cfg_in = uio_in;
 	reg [15:0] cfg;
 	wire [7:0] cfg_in_en = ui_in;
