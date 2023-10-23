@@ -67,7 +67,7 @@ module tt_um_toivoh_test #(
 	wire saw_en = oct_enables[oct];
 	wire saw_trigger;
 	Counter #(.PERIOD_BITS(PERIOD_BITS), .LOG2_STEP(WAVE_BITS)) saw_counter(
-		.clk(clk), .reset(reset), .period0(0), .period1(saw_period), .enable(saw_en & counter_en),
+		.clk(clk), .reset(reset), .period0({PERIOD_BITS{1'b0}}), .period1(saw_period), .enable(saw_en & counter_en),
 		.trigger(saw_trigger)
 	);
 	reg [WAVE_BITS-1:0] saw;
