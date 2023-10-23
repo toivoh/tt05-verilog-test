@@ -38,6 +38,7 @@ module tt_um_toivoh_test #(
 	);
 
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
+	localparam FEED_SHL = (1 << OCT_BITS) - 1;
 	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
 
 	wire reset = !rst_n;
@@ -72,8 +73,8 @@ module tt_um_toivoh_test #(
 	reg [WAVE_BITS-1:0] saw;
 
 	// Osc and damp counters
-	wire [PERIOD_BITS-1:0] osc_period  = {1'b1, cfg[16 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
-	wire [PERIOD_BITS-1:0] damp_period = {1'b1, cfg[32 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
+	wire [PERIOD_BITS:0] osc_period  = {2'b01, cfg[16 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
+	wire [PERIOD_BITS:0] damp_period = {2'b01, cfg[32 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
 	wire [OCT_BITS-1:0] osc_oct  = cfg[16 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 	wire [OCT_BITS-1:0] damp_oct = cfg[32 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
 	wire osc_trigger, damp_trigger;
@@ -101,8 +102,8 @@ module tt_um_toivoh_test #(
 			//cfg <= {3'd3, 9'd56};
 			cfg[15:0] <= {3'd3, 9'd56};
 			cfg[31:16] <= {3'd3, 9'd56};
-			cfg[47:32] <= {4'd3, 9'd56};
-			//cfg[47:32] <= {6'd3, 9'd56};
+			cfg[47:32] <= {3'd4, 9'd56};
+			//cfg[47:32] <= {3'd6, 9'd56};
 			saw <= 0;
 			y <= 0;
 			v <= 0;
@@ -124,8 +125,8 @@ module tt_um_toivoh_test #(
 
 				v <= v - ((v >>> LEAST_SHR) >>> nf_damp);
 			end else if (state == 1) begin
-				//v <= v + ($signed({saw, {EXTRA_BITS{1'b0}}}) >>> nf_osc);
-				v <= v + ($signed({saw, {(EXTRA_BITS-4){1'b0}}}) >>> nf_osc);
+				//v <= v + ($signed({saw, {FEED_SHL{1'b0}}}) >>> nf_osc);
+				v <= v + ($signed({saw, {(FEED_SHL-1){1'b0}}}) >>> nf_osc);
 			end else if (state == 2) begin
 				y <= y + ((v >>> LEAST_SHR) >>> nf_osc);
 			end else if (state == 3) begin

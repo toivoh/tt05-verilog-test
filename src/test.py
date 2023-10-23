@@ -12,7 +12,8 @@ async def test(dut):
 	# reset
 	dut._log.info("reset")
 	dut.rst_n.value = 0
-	# set the compare value
+	dut.ui_in = 0;
+	dut.uio_in = 0;
 	await ClockCycles(dut.clk, 10)
 	dut.rst_n.value = 1
 
