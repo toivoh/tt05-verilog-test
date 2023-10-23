@@ -40,6 +40,7 @@ module tt_um_toivoh_test #(
 	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
 	localparam FEED_SHL = (1 << OCT_BITS) - 1;
 	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
+	localparam SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
 
 	wire reset = !rst_n;
 
@@ -94,6 +95,29 @@ module tt_um_toivoh_test #(
 	wire [OCT_BITS-1:0] nf_osc  = osc_oct  + do_osc;
 	wire [OCT_BITS-1:0] nf_damp = damp_oct + do_damp;
 
+	reg signed [STATE_BITS-1:0] a_src;
+	reg signed [SHIFTER_BITS-1:0] shifter_src;
+	reg [OCT_BITS-1:0] nf;
+	always @(*) begin
+		case (state)
+			0, 1, 3: a_src = v;
+			2: a_src = y;
+		endcase
+		case (state)
+			1: shifter_src = $signed({saw, {(FEED_SHL-1){1'b0}}});
+			2: shifter_src = v >>> LEAST_SHR;
+			3: shifter_src = ~(y >>> LEAST_SHR); // cheaper negation
+			0: shifter_src = ~(v >>> LEAST_SHR); // cheaper negation
+		endcase
+		case (state)
+			0: nf = nf_damp;
+			1, 2, 3: nf = nf_osc;
+		endcase
+	end
+
+	wire signed [SHIFTER_BITS-1:0] b_src = shifter_src >>> nf;
+	wire [STATE_BITS-1:0] next_state = a_src + b_src;
+
 	always @(posedge clk) begin
 		if (reset) begin
 			state <= 0;
@@ -123,14 +147,17 @@ module tt_um_toivoh_test #(
 				do_osc <= osc_trigger;
 				do_damp <= damp_trigger;
 
-				v <= v - ((v >>> LEAST_SHR) >>> nf_damp);
+				//v <= v - ((v >>> LEAST_SHR) >>> nf_damp);
+				v <= next_state;
 			end else if (state == 1) begin
-				//v <= v + ($signed({saw, {FEED_SHL{1'b0}}}) >>> nf_osc);
-				v <= v + ($signed({saw, {(FEED_SHL-1){1'b0}}}) >>> nf_osc);
+				//v <= v + ($signed({saw, {(FEED_SHL-1){1'b0}}}) >>> nf_osc);
+				v <= next_state;
 			end else if (state == 2) begin
-				y <= y + ((v >>> LEAST_SHR) >>> nf_osc);
+				//y <= y + ((v >>> LEAST_SHR) >>> nf_osc);
+				y <= next_state;
 			end else if (state == 3) begin
-				v <= v - ((y >>> LEAST_SHR) >>> nf_osc);
+				//v <= v - ((y >>> LEAST_SHR) >>> nf_osc);
+				v <= next_state;
 			end
 
 			state <= state + 1;
