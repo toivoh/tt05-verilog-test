@@ -21,12 +21,16 @@ async def test(dut):
 
 	period = (512 + 56) << 3;
 
-	with open("tb-data.txt", "w") as file:
-		file.write("data = [")
-		for i in range(2*period):
-			file.write(str(0 + dut.dut.oct_counter.value) + " ")
-			file.write(str(0 + dut.dut.saw_counter.counter.value) + " ")
-			file.write(str(0 + dut.dut.saw.value) + " ")
-			file.write(";")
-			await ClockCycles(dut.clk, 1)
-		file.write("]")
+	preserved = hasattr(dut, "dut")
+	if preserved:
+		with open("tb-data.txt", "w") as file:
+			file.write("data = [")
+			for i in range(2*period):
+				file.write(str(0 + dut.dut.oct_counter.value) + " ")
+				file.write(str(0 + dut.dut.saw_counter.counter.value) + " ")
+				file.write(str(0 + dut.dut.saw.value) + " ")
+				file.write(";")
+				await ClockCycles(dut.clk, 1)
+			file.write("]")
+	else:
+		ClockCycles(dut.clk, 2*period)
