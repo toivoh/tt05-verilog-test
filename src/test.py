@@ -34,8 +34,10 @@ async def test(dut):
 				file.write(str(0 + dut.dut.oct_counter.value) + " ")
 				file.write(str(0 + dut.dut.saw_counter.counter.value) + " ")
 				file.write(str(0 + dut.dut.saw.value) + " ")
+				file.write(str(0 + dut.dut.y.value) + " ")
+				file.write(str(0 + dut.dut.v.value) + " ")
 				file.write(";")
-				await ClockCycles(dut.clk, 1)
+				await ClockCycles(dut.clk, 4)
 			file.write("]")
 	else:
-		ClockCycles(dut.clk, 2*period)
+		ClockCycles(dut.clk, 2*period*4)

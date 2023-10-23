@@ -23,7 +23,10 @@ module Counter #( parameter PERIOD_BITS = 8, parameter LOG2_STEP = 0 ) (
 	end
 endmodule
 
-module tt_um_toivoh_test #( parameter DIVIDER_BITS=7, parameter OCT_BITS=3, parameter PERIOD_BITS = 10, parameter WAVE_BITS = 8 ) (
+module tt_um_toivoh_test #(
+		parameter DIVIDER_BITS = 7, parameter OCT_BITS = 3, parameter PERIOD_BITS = 10, parameter WAVE_BITS = 8,
+		parameter LEAST_SHR = 3
+	) (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
 		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
 		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -34,12 +37,18 @@ module tt_um_toivoh_test #( parameter DIVIDER_BITS=7, parameter OCT_BITS=3, para
 		input  wire       rst_n     // reset_n - low to reset
 	);
 
+	localparam EXTRA_BITS = LEAST_SHR + (1 << OCT_BITS) - 1;
+	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
+
 	wire reset = !rst_n;
+
+	reg [1:0] state;
+	wire counter_en = ena && (state == 0);
 
 	// Configuration input
 	assign uio_oe = 0; assign uio_out = 0; // Let the bidirectional signals be inputs
 	wire [7:0] cfg_in = uio_in;
-	reg [15:0] cfg;
+	reg [47:0] cfg;
 	wire [7:0] cfg_in_en = ui_in;
 
 
@@ -57,26 +66,76 @@ module tt_um_toivoh_test #( parameter DIVIDER_BITS=7, parameter OCT_BITS=3, para
 	wire saw_en = oct_enables[oct];
 	wire saw_trigger;
 	Counter #(.PERIOD_BITS(PERIOD_BITS), .LOG2_STEP(WAVE_BITS)) saw_counter(
-		.clk(clk), .reset(reset), .period0(0), .period1(saw_period), .enable(saw_en & ena), .trigger(saw_trigger)
+		.clk(clk), .reset(reset), .period0(0), .period1(saw_period), .enable(saw_en & counter_en),
+		.trigger(saw_trigger)
 	);
 	reg [WAVE_BITS-1:0] saw;
 
+	// Osc and damp counters
+	wire [PERIOD_BITS-1:0] osc_period  = {1'b1, cfg[16 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
+	wire [PERIOD_BITS-1:0] damp_period = {1'b1, cfg[32 + PERIOD_BITS-2 -: PERIOD_BITS-1]};
+	wire [OCT_BITS-1:0] osc_oct  = cfg[16 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+	wire [OCT_BITS-1:0] damp_oct = cfg[32 + PERIOD_BITS-2+OCT_BITS -: OCT_BITS];
+	wire osc_trigger, damp_trigger;
+	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) osc_counter(
+		.clk(clk), .reset(reset), .period0(osc_period), .period1(osc_period << 1), .enable(counter_en),
+		.trigger(osc_trigger)
+	);
+	Counter #(.PERIOD_BITS(PERIOD_BITS+1), .LOG2_STEP(PERIOD_BITS)) damp_counter(
+		.clk(clk), .reset(reset), .period0(damp_period), .period1(damp_period << 1), .enable(counter_en),
+		.trigger(damp_trigger)
+	);
+	reg do_osc, do_damp; // TODO: Could I do without these?
+
+	reg signed [STATE_BITS-1:0] y;
+	reg signed [STATE_BITS-1:0] v;
+
+	wire [OCT_BITS-1:0] nf_osc  = osc_oct  + do_osc;
+	wire [OCT_BITS-1:0] nf_damp = damp_oct + do_damp;
 
 	always @(posedge clk) begin
 		if (reset) begin
+			state <= 0;
 			oct_counter <= 0;
 			//cfg <= 0;
-			cfg <= {3'd3, 9'd56};
+			//cfg <= {3'd3, 9'd56};
+			cfg[15:0] <= {3'd3, 9'd56};
+			cfg[31:16] <= {3'd3, 9'd56};
+			cfg[47:32] <= {4'd3, 9'd56};
+			//cfg[47:32] <= {6'd3, 9'd56};
 			saw <= 0;
+			y <= 0;
+			v <= 0;
+			do_osc <= 0;
+			do_damp <= 0;
 		end else begin
-			if (cfg_in_en[0]) cfg[ 7:0] <= cfg_in;
-			if (cfg_in_en[1]) cfg[15:7] <= cfg_in;
+			if (cfg_in_en[0]) cfg[ 7: 0] <= cfg_in;
+			if (cfg_in_en[1]) cfg[15: 8] <= cfg_in;
+			if (cfg_in_en[2]) cfg[23:16] <= cfg_in;
+			if (cfg_in_en[3]) cfg[31:24] <= cfg_in;
+			if (cfg_in_en[4]) cfg[39:32] <= cfg_in;
+			if (cfg_in_en[5]) cfg[47:40] <= cfg_in;
 
-			oct_counter <= next_oct_counter;
+			if (state == 0) begin
+				oct_counter <= next_oct_counter;
+				saw <= saw + saw_trigger;
+				do_osc <= osc_trigger;
+				do_damp <= damp_trigger;
 
-			saw <= saw + saw_trigger;
+				v <= v - ((v >>> LEAST_SHR) >>> nf_damp);
+			end else if (state == 1) begin
+				//v <= v + ($signed({saw, {EXTRA_BITS{1'b0}}}) >>> nf_osc);
+				v <= v + ($signed({saw, {(EXTRA_BITS-4){1'b0}}}) >>> nf_osc);
+			end else if (state == 2) begin
+				y <= y + ((v >>> LEAST_SHR) >>> nf_osc);
+			end else if (state == 3) begin
+				v <= v - ((y >>> LEAST_SHR) >>> nf_osc);
+			end
+
+			state <= state + 1;
 		end
 	end
 
-	assign uo_out = saw;
+	//assign uo_out = saw;
+	assign uo_out = y >>> EXTRA_BITS;
 endmodule
