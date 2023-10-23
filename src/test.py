@@ -12,8 +12,8 @@ async def test(dut):
 	# reset
 	dut._log.info("reset")
 	dut.rst_n.value = 0
-	dut.ui_in = 0;
-	dut.uio_in = 0;
+	dut.ui_in.value = 0
+	dut.uio_in.value = 0
 	await ClockCycles(dut.clk, 10)
 	dut.rst_n.value = 1
 
@@ -37,6 +37,7 @@ async def test(dut):
 				file.write(str(0 + dut.dut.saw.value) + " ")
 				file.write(str(0 + dut.dut.y.value) + " ")
 				file.write(str(0 + dut.dut.v.value) + " ")
+				file.write(str(0 + dut.dut.uo_out.value) + " ")
 				file.write(";")
 				await ClockCycles(dut.clk, 4)
 			file.write("]")
