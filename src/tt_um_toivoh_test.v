@@ -3,7 +3,8 @@
 module Counter #( parameter PERIOD_BITS = 8, parameter LOG2_STEP = 0 ) (
 		input wire clk,
 		input wire reset,
-		input wire [PERIOD_BITS-1:0] period,
+		input wire [PERIOD_BITS-1:0] period0,
+		input wire [PERIOD_BITS-1:0] period1,
 		input wire enable,
 		output wire trigger
 	);
@@ -11,7 +12,7 @@ module Counter #( parameter PERIOD_BITS = 8, parameter LOG2_STEP = 0 ) (
 	reg [PERIOD_BITS-1:0] counter;
 	wire [PERIOD_BITS-1:0] delta_counter;
 	assign trigger = enable & !(|counter[PERIOD_BITS-1:LOG2_STEP]); // Trigger if decreasing by 1 << LOG2_STEP would wrap around.
-	assign delta_counter = (trigger ? period : 0) - (1 << LOG2_STEP);
+	assign delta_counter = (trigger ? period1 : period0) - (1 << LOG2_STEP);
 
 	always @(posedge clk) begin
 		if (reset) begin
@@ -56,7 +57,7 @@ module tt_um_toivoh_test #( parameter DIVIDER_BITS=7, parameter OCT_BITS=3, para
 	wire saw_en = oct_enables[oct];
 	wire saw_trigger;
 	Counter #(.PERIOD_BITS(PERIOD_BITS), .LOG2_STEP(WAVE_BITS)) saw_counter(
-		.clk(clk), .reset(reset), .period(saw_period), .enable(saw_en & ena), .trigger(saw_trigger)
+		.clk(clk), .reset(reset), .period0(0), .period1(saw_period), .enable(saw_en & ena), .trigger(saw_trigger)
 	);
 	reg [WAVE_BITS-1:0] saw;
 
