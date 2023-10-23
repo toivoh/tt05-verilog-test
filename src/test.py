@@ -21,7 +21,12 @@ async def test(dut):
 
 	period = (512 + 56) << 3;
 
-	preserved = hasattr(dut, "dut")
+	preserved = True
+	try:
+		oct_counter = dut.dut.oct_counter.value
+	except AttributeError:
+		preserved = False
+
 	if preserved:
 		with open("tb-data.txt", "w") as file:
 			file.write("data = [")
