@@ -29,7 +29,8 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 	wire [BYTES_IN*4-1:0] x = input_data[BYTES_IN*4-1:0];
 	wire [BYTES_IN*4-1:0] y = input_data[BYTES_IN*8-1:BYTES_IN*4];
 
-	assign result = !(x&y);
+	//assign result = !(x&y); // NAND
+	assign result = x + y; // add
 
 	always @(posedge clk) begin : main
 		integer i;
