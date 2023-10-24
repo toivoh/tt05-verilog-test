@@ -33,7 +33,8 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 	//assign result = x + y; // add
 	//assign result = $signed(x) >>> y[4:0]; // barrel shifter
 	//assign result = !(x&y[4:0]); // NAND / not for barrel shifter comparison
-	assign result = ena ? x : y; // mux
+	//assign result = ena ? x : y; // mux
+	assign result = rst_n ? (ena ? x : y) : (ena ? {x[0], x[BYTES_IN*4-1:1]} : {y[0], y[BYTES_IN*4-1:1]}); // mux4
 
 
 	always @(posedge clk) begin : main
