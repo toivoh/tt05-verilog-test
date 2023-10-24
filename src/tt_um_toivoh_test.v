@@ -31,7 +31,8 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 
 	//assign result = !(x&y); // NAND
 	//assign result = x + y; // add
-	assign result = $signed(x) >>> y[4:0]; // barrel shifter
+	//assign result = $signed(x) >>> y[4:0]; // barrel shifter
+	assign result = !(x&y[4:0]); // NAND / not for barrel shifter comparison
 
 	always @(posedge clk) begin : main
 		integer i;
