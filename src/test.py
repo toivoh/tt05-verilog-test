@@ -42,4 +42,5 @@ async def test(dut):
 				await ClockCycles(dut.clk, 4)
 			file.write("]")
 	else:
-		ClockCycles(dut.clk, 2*period*4)
+		#ClockCycles(dut.clk, 2*period*4)
+		ClockCycles(dut.clk, 4)
