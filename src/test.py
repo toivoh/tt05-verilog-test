@@ -22,7 +22,7 @@ async def test(dut):
 
 	period = (512 + 56) << 3;
 
-	preserved = True
+	preserved = False#True
 	try:
 		oct_counter = dut.dut.oct_counter.value
 	except AttributeError:
