@@ -14,6 +14,8 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 	localparam BYTES_IN = 1 << LOG2_BYTES_IN;
 	localparam BYTES_OUT = 1 << LOG2_BYTES_OUT;
 
+	localparam BITS_OUT = 8*BYTES_OUT;
+
 	assign uio_out = 0;
 	assign uio_oe = 0;
 
@@ -34,8 +36,15 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 	//assign result = $signed(x) >>> y[4:0]; // barrel shifter
 	//assign result = !(x&y[4:0]); // NAND / not for barrel shifter comparison
 	//assign result = ena ? x : y; // mux
-	assign result = rst_n ? (ena ? x : y) : (ena ? {x[0], x[BYTES_IN*4-1:1]} : {y[0], y[BYTES_IN*4-1:1]}); // mux4
+	//assign result = rst_n ? (ena ? x : y) : (ena ? {x[0], x[BYTES_IN*4-1:1]} : {y[0], y[BYTES_IN*4-1:1]}); // mux4
 
+	// Ripple carry adder
+	wire [BITS_OUT:0] c;
+	assign c[0] = 0;
+	genvar i;
+	generate
+		for (i=0; i < BITS_OUT; i++) assign {c[i+1], result[i]} = x[i] + y[i] + c[i];
+	endgenerate
 
 	always @(posedge clk) begin : main
 		integer i;
