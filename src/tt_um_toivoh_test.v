@@ -42,7 +42,7 @@ module tt_um_toivoh_test #(
 	localparam STATE_BITS = WAVE_BITS + EXTRA_BITS;
 	localparam SHIFTER_BITS = WAVE_BITS + (1 << OCT_BITS) - 1;
 
-	wire reset = 0;//!rst_n;
+	wire reset = !rst_n;
 
 	reg [1:0] state;
 	wire counter_en = ena && (state == 0);
