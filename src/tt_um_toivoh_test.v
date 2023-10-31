@@ -41,13 +41,17 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 	// Ripple carry adder
 	wire [BITS_OUT:0] c;
 	assign c[0] = 0;
+
+	wire [2:0] temp[BITS_OUT];
 	genvar i;
 	generate
 		for (i=0; i < BITS_OUT; i++) begin
 			//assign {c[i+1], result[i]} = x[i] + y[i] + c[i];
 			//assign c[i+1] = x[i]&y[i] | c[i]&(x[i] | y[i]);
 			//assign result[i] = c[i]&x[i]&y[i] | (c[i] | x[i] | y[i])&~c[i+1];
-			assign {c[i+1], result[i]} = {x[i], 1'b1} + {y[i], c[i]};
+
+			assign temp[i] = {x[i], 1'b1} + {y[i], c[i]};
+			assign {c[i+1], result[i]} = temp[i][2:1];
 		end
 	endgenerate
 
