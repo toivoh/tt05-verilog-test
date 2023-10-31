@@ -43,7 +43,11 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 	assign c[0] = 0;
 	genvar i;
 	generate
-		for (i=0; i < BITS_OUT; i++) assign {c[i+1], result[i]} = x[i] + y[i] + c[i];
+		for (i=0; i < BITS_OUT; i++) begin
+			//assign {c[i+1], result[i]} = x[i] + y[i] + c[i];
+			assign c[i+1] = x[i]&y[i] | c[i]&(x[i] | y[i]);
+			assign result[i] = c[i]&x[i]&y[i] | (c[i] | x[i] | y[i])&~c[i+1];
+		end
 	endgenerate
 
 	always @(posedge clk) begin : main
