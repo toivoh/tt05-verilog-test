@@ -21,10 +21,42 @@ module tt_um_toivoh_test (
 
 	wire [ADDR_BITS-1:0] addr = ui_in;
 	wire [7:0] data_in = uio_in;
-	wire [7:0] data_out = ram[addr];
+	wire [7:0] data_out;
 	assign uo_out = data_out;
 
+	/*
+	data_out = ram[addr];
 	always @(posedge clk) begin
 		ram[addr] <= data_in;
 	end
+	*/
+
+	wire [5:0] naddr = ~addr;
+	wire [2:0] addrl = addr[2:0];
+	wire [2:0] addrh = addr[5:3];
+	wire [2:0] naddrl = naddr[2:0];
+	wire [2:0] naddrh = naddr[5:3];
+
+	wire [2:0] addr0 = naddrl & naddrh;
+	wire [2:0] addr1 = naddrl &  addrh;
+	wire [2:0] addr2 =  addrl & naddrh;
+	wire [2:0] addr3 =  addrl &  addrh;
+
+	wire [3:0] addr01 = {addr3[0], addr2[0], addr1[0], addr0[0]};
+	wire [3:0] addr23 = {addr3[1], addr2[1], addr1[1], addr0[1]};
+	wire [3:0] addr45 = {addr3[2], addr2[2], addr1[2], addr0[2]};
+
+	wire [15:0] addr0123 = {4{addr01}} & {{4{addr23[3]}}, {4{addr23[2]}}, {4{addr23[1]}}, {4{addr23[0]}}};
+
+	genvar i;
+	generate
+		for (i = 0; i < NUM_BYTES; i++) begin
+			wire [5:0] index = i;
+			wire active = addr0123[index[3:0]] & addr45[index[5:4]];
+			always @(posedge clk) begin
+				if (active) ram[i] <= data_in;
+			end
+			assign data_out = active ? ram[i] : 'Z;
+		end
+	endgenerate
 endmodule
