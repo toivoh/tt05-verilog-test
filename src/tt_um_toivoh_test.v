@@ -1,6 +1,6 @@
 `default_nettype none
 
-module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OUT = 2) (
+module tt_um_toivoh_test (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
 		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
 		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -11,8 +11,8 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 3, parameter LOG2_BYTES_OU
 		input  wire       rst_n     // reset_n - low to reset
 	);
 
-	localparam ADDR_BITS = 5;
-	localparam NUM_BYTES = 2**ADDR_BITS;
+	localparam ADDR_BITS = 6;
+	localparam NUM_BYTES = 48; //2**ADDR_BITS;
 
 	assign uio_out = 0;
 	assign uio_oe = 0;
