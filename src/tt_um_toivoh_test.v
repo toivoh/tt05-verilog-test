@@ -24,13 +24,12 @@ module tt_um_toivoh_test (
 	wire [7:0] data_out;
 	assign uo_out = data_out;
 
-	/*
-	data_out = ram[addr];
+	assign data_out = ram[addr];
 	always @(posedge clk) begin
 		ram[addr] <= data_in;
 	end
-	*/
 
+	/*
 	wire [5:0] naddr = ~addr;
 	wire [2:0] addrl = addr[2:0];
 	wire [2:0] addrh = addr[5:3];
@@ -59,4 +58,6 @@ module tt_um_toivoh_test (
 			assign data_out = active ? ram[i] : 'Z;
 		end
 	endgenerate
+	*/
+
 endmodule
