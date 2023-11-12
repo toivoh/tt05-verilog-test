@@ -9,3 +9,6 @@ src/results.xml
 src/user_config.tcl
 
 src/tb-data.txt
+
+gds_render*
+tt
