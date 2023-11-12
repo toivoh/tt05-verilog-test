@@ -69,8 +69,12 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10 ) 
 
 	wire [X_BITS-1:0] x0, x_fp, x_s, x1;
 	wire [Y_BITS-1:0] y0, y_fp, y_s, y1;
-	assign {x1, x_s, x_fp, x0} = cfg[X_BITS*4-1:0];
-	assign {y1, y_s, y_fp, y0} = cfg[(X_BITS+Y_BITS)*4-1:X_BITS*4];
+	//assign {x1, x_s, x_fp, x0} = cfg[X_BITS*4-1:0];
+	//assign {y1, y_s, y_fp, y0} = cfg[(X_BITS+Y_BITS)*4-1:X_BITS*4];
+	// Hardcoded VGA 640x480, X_BITS=11, Y_BITS=10:
+	assign {x0, x_fp, x_s, x1} = {-11'd48, 11'd640, 11'd656, 11'd752};
+	assign {y0, y_fp, y_s, y1} = {-10'd33, 10'd480, 10'd490, 10'd492};
+
 
 	wire active, hsync, vsync;
 	raster_scan #(.X_BITS(X_BITS), .Y_BITS(Y_BITS)) rs(
