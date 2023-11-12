@@ -54,6 +54,7 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10 ) 
 	wire reset = !rst_n;
 
 	assign uio_oe = 0;
+	assign uio_out = 0;
 
 	reg  [BYTES_IN*8-1:0] cfg;
 	wire [7:0] data_in = ui_in;
@@ -80,5 +81,5 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10 ) 
 		.active(active), .hsync(hsync), .vsync(vsync)
 	);
 
-	assign uio_out = {5'b0, vsync, hsync, active};
+	assign uo_out = {5'b0, vsync, hsync, active};
 endmodule
