@@ -1,5 +1,43 @@
 `default_nettype none
 
+/*
+module raster_scan2 #( parameter X_BITS=10, Y_BITS=9 ) (
+		input wire clk,
+		input wire reset,
+		input wire enable,
+
+		input wire [X_BITS-1:0] x_vis, x_fp, x_sync, x_bp,
+		input wire [Y_BITS-1:0] y_vis, y_fp, y_sync, y_bp,
+
+		output wire active, hsync, vsync
+	);
+
+	localparam PHASE_VIS = 0;
+	localparam PHASE_FP = 1;
+	localparam PHASE_SYNC = 2;
+	localparam PHASE_BP = 3;
+
+	reg [1:0] x_phase, y_phase;
+	reg [X_BITS-1:0] x;
+	reg [Y_BITS-1:0] y;
+
+	wire last_x_in_phase = x == 0;
+
+	always @(posedge clk) begin
+		if (reset) begin
+			x_phase <= 0;
+			y_phase <= 0;
+			x <= 0;
+			y <= 0;
+		end else begin
+			if enable
+
+			end
+		end
+	end
+endmodule
+*/
+
 module raster_scan #( parameter X_BITS=11, Y_BITS=10 ) (
 		input wire clk,
 		input wire reset,
@@ -37,8 +75,68 @@ module raster_scan #( parameter X_BITS=11, Y_BITS=10 ) (
 	end
 endmodule
 
+module tilemap_renderer #( parameter RAMIF_WIDTH=4 ) (
+		input wire clk,
+		input wire reset,
+		input wire enable,
 
-module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10 ) (
+		output [RAMIF_WIDTH-1:0] addr_bits,
+		input [RAMIF_WIDTH-1:0] data_bits,
+
+		output [1:0] pixel
+	);
+
+	localparam PHASE_IDS = 0;
+	localparam PHASE_TILE0 = 1;
+	localparam PHASE_TILE1 = 3;
+
+	reg [3:0] pixel_pos; // 2-tile cycle
+	reg [2:0] y; // TODO: increment
+	reg [15:0] pixels; // 2 bits / pixel x 8 pixels
+	reg [15:0] tile_ids;
+	reg [15:0] tilemap_addr;
+
+	wire [1:0] phase = pixel_pos[3:2];
+
+	reg [15:0] addr; // = tilemap_addr;
+	always @(*) begin
+		case (phase)
+			PHASE_IDS: addr = tilemap_addr;
+			PHASE_TILE0: addr = {tile_ids[7:0], y};
+			PHASE_TILE1: addr = {tile_ids[15:8], y};
+			default: addr = 'X;
+		endcase
+	end
+
+	// TODO: offset
+	wire dest_tile_ids = (phase == PHASE_IDS);
+	wire dest_pixels = (phase == PHASE_TILE0) | (phase == PHASE_TILE1);
+
+	wire [3:0] dest_pos = RAMIF_WIDTH*pixel_pos;
+	always @(posedge clk) begin
+		if (reset) begin
+			pixel_pos <= 0;
+			pixels <= 0;
+			tile_ids <= 0;
+			tilemap_addr <= 0;
+			y <= 0;
+		end else if (enable) begin
+			pixel_pos <= pixel_pos + 1;
+			if (dest_tile_ids) tile_ids[addr_pos + RAMIF_WIDTH - 1 -: RAMIF_WIDTH] <= data_bits;
+			if (dest_pixels) pixels[addr_pos + RAMIF_WIDTH - 1 -: RAMIF_WIDTH] <= data_bits;
+			tilemap_addr <= tilemap_addr + (pixel_pos == 0);
+		end
+	end
+
+	wire [3:0] addr_pos = RAMIF_WIDTH*pixel_pos;
+	assign addr_bits = addr[addr_pos + RAMIF_WIDTH - 1 -: RAMIF_WIDTH];
+
+	assign pixel = pixels[pixel_pos[2:0]]; // TODO: left to right or right to left?
+endmodule
+
+
+
+module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10, RAMIF_WIDTH=4 ) (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
 		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
 		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -85,5 +183,17 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10 ) 
 		.active(active), .hsync(hsync), .vsync(vsync)
 	);
 
-	assign uo_out = {5'b0, vsync, hsync, active};
+	wire [1:0] pixel;
+	wire [RAMIF_WIDTH-1:0] addr_bits, data_bits;
+	tilemap_renderer #(.RAMIF_WIDTH(RAMIF_WIDTH)) tr(
+		.clk(clk), .reset(reset), .enable(1'b1),
+		.addr_bits(addr_bits), .data_bits(data_bits),
+		.pixel(pixel)
+	);
+
+	wire [1:0] pixel_out = active ? pixel : '0;
+
+	//assign uo_out = {5'b0, vsync, hsync, active};
+	assign uo_out = {addr_bits, hsync, vsync, pixel_out};
+	assign data_bits = uio_in[7 -: RAMIF_WIDTH];
 endmodule
