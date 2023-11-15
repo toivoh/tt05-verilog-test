@@ -136,7 +136,7 @@ endmodule
 
 
 
-module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10, RAMIF_WIDTH=4 ) (
+module tt_um_toivoh_test0 #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10, RAMIF_WIDTH=4 ) (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
 		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
 		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -196,4 +196,41 @@ module tt_um_toivoh_test #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10, R
 	//assign uo_out = {5'b0, vsync, hsync, active};
 	assign uo_out = {addr_bits, hsync, vsync, pixel_out};
 	assign data_bits = uio_in[7 -: RAMIF_WIDTH];
+endmodule
+
+
+module tt_um_toivoh_test #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4 ) (
+		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
+		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
+		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
+		output wire [7:0] uio_out,  // IOs: Bidirectional Output path
+		output wire [7:0] uio_oe,   // IOs: Bidirectional Enable path (active high: 0=input, 1=output)
+		input  wire       ena,      // will go high when the design is enabled
+		input  wire       clk,      // clock
+		input  wire       rst_n     // reset_n - low to reset
+	);
+
+	localparam RAM_CYCLES = 2**RAM_LOG2_CYCLES;
+
+	wire reset = !rst_n;
+
+	assign uio_oe = 0;
+	assign uio_out = 0;
+
+	reg [15:0] addr;
+	reg [RAM_LOG2_CYCLES-1:0] counter;
+	wire [RAM_LOG2_CYCLES:0] next_counter = counter + 1;
+	wire [RAM_PINS-1:0] addr_bits = addr[counter*RAM_PINS + RAM_PINS-1 -: RAM_PINS];
+
+	always @(posedge clk) begin
+		if (reset) begin
+			counter <= 0;
+			addr <= 0;
+		end else begin
+			counter <= next_counter[RAM_LOG2_CYCLES-1:0];
+			addr <= addr + next_counter[RAM_LOG2_CYCLES];
+		end
+	end
+
+	assign uo_out = {addr_bits, {(8-RAM_PINS){1'b0}}};
 endmodule

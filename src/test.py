@@ -9,6 +9,17 @@ async def test(dut):
 	clock = Clock(dut.clk, 2, units="us")
 	cocotb.start_soon(clock.start())
 
+	preserved = True
+	try:
+		data = dut.data.value
+	except AttributeError:
+		preserved = False
+
+	if preserved:
+		ram = dut.extram.ram
+		for i in range(256):
+			ram[i] = 0xf000 + i
+
 	# reset
 	dut._log.info("reset")
 	dut.rst_n.value = 0
@@ -20,27 +31,7 @@ async def test(dut):
 	# enable
 	dut.ena.value = 1
 
-	period = (512 + 56) << 3;
-
-	preserved = True
-	try:
-		oct_counter = dut.dut.oct_counter.value
-	except AttributeError:
-		preserved = False
-
 	if preserved:
-		with open("tb-data.txt", "w") as file:
-			file.write("data = [")
-			for i in range(2*period):
-				file.write(str(0 + dut.dut.oct_counter.value) + " ")
-				file.write(str(0 + dut.dut.saw_counter.counter.value) + " ")
-				file.write(str(0 + dut.dut.saw.value) + " ")
-				file.write(str(0 + dut.dut.y.value) + " ")
-				file.write(str(0 + dut.dut.v.value) + " ")
-				file.write(str(0 + dut.dut.uo_out.value) + " ")
-				file.write(";")
-				await ClockCycles(dut.clk, 4)
-			file.write("]")
+		await ClockCycles(dut.clk, 256)
 	else:
-		#ClockCycles(dut.clk, 2*period*4)
-		ClockCycles(dut.clk, 4)
+		await ClockCycles(dut.clk, 1)
