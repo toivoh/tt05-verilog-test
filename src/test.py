@@ -18,6 +18,9 @@ async def test(dut):
 	if preserved:
 		ram = dut.extram.ram
 		for i in range(256):
+			addr = i + ((~i & 15) << 12)
+			ram[addr] = (~i & 0xfff) + ((i & 15) << 12)
+		for i in range(256):
 			ram[i] = i + ((~i & 15) << 12)
 
 	# reset

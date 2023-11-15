@@ -222,7 +222,7 @@ module tt_um_toivoh_test #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4 ) (
 	wire [RAM_LOG2_CYCLES:0] next_counter = counter + 1;
 	wire counter_wrap = next_counter[RAM_LOG2_CYCLES];
 	reg state;
-	wire [RAM_PINS-1:0] addr_bits = addr[counter*RAM_PINS + RAM_PINS-1 -: RAM_PINS];
+	wire [RAM_PINS-1:0] addr_bits = state ? data_bits : addr[counter*RAM_PINS + RAM_PINS-1 -: RAM_PINS];
 
 	wire [RAM_PINS-1:0] data_bits = ui_in[7 -: RAM_PINS];
 	reg [15:0] data;
@@ -234,7 +234,7 @@ module tt_um_toivoh_test #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4 ) (
 			state <= 0;
 		end else begin
 			counter <= next_counter[RAM_LOG2_CYCLES-1:0];
-			addr <= addr + counter_wrap; //(counter_wrap && (state == 0));
+			addr <= addr + (counter_wrap && (state == 0));
 			state <= state + counter_wrap;
 
 			data[counter*RAM_PINS + RAM_PINS-1 -: RAM_PINS] <= data_bits;
