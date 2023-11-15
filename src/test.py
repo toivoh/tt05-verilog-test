@@ -18,7 +18,7 @@ async def test(dut):
 	if preserved:
 		ram = dut.extram.ram
 		for i in range(256):
-			ram[i] = 0xf000 + i
+			ram[i] = i + ((~i & 15) << 12)
 
 	# reset
 	dut._log.info("reset")

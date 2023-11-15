@@ -42,7 +42,7 @@ endmodule
 
 
 // testbench is controlled by test.py
-module tb #( parameter RAM_PINS=4, RAM_LOG2_CYCLES=2, RAM_ADDR_BITS=12, RAM_EXTRA_DELAY=2) ();
+module tb #( parameter RAM_PINS=4, RAM_LOG2_CYCLES=2, RAM_ADDR_BITS=12, RAM_EXTRA_DELAY=3) ();
 
     // this part dumps the trace to a vcd file that can be viewed with GTKWave
     initial begin
@@ -86,7 +86,7 @@ module tb #( parameter RAM_PINS=4, RAM_LOG2_CYCLES=2, RAM_ADDR_BITS=12, RAM_EXTR
         .rst_n      (rst_n)     // not reset
         );
 
-    serial_ram #( .ADDR_PINS(RAM_PINS), .DATA_PINS(RAM_PINS), .LOG2_CYCLES(RAM_LOG2_CYCLES), .RAM_ADDR_BITS(RAM_ADDR_BITS), .DELAY(RAM_EXTRA_DELAY)) extram (
+    serial_ram #(.ADDR_PINS(RAM_PINS), .DATA_PINS(RAM_PINS), .LOG2_CYCLES(RAM_LOG2_CYCLES), .RAM_ADDR_BITS(RAM_ADDR_BITS), .DELAY(RAM_EXTRA_DELAY)) extram (
         .clk(clk), .reset(!rst_n), .enable(1'b1),
         .addr_in(uo_out[7 -: ADDR_PINS]), .data_out(data)
     );
