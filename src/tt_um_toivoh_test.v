@@ -199,7 +199,9 @@ module tt_um_toivoh_test0 #( parameter LOG2_BYTES_IN = 4, X_BITS=11, Y_BITS=10, 
 endmodule
 
 
-module tt_um_toivoh_test #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4 ) (
+// Assumes RAM_EXTRA_DELAY = 7
+// One tilemap, 4 bpp RAM interface, 1 cycle/pixel
+module tt_um_toivoh_test_4bpp #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4 ) (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
 		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
 		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -242,4 +244,66 @@ module tt_um_toivoh_test #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4 ) (
 	end
 
 	assign uo_out = {addr_bits, {(8-RAM_PINS){1'b0}}};
+endmodule
+
+// Chained read-ahead of one tile map based on transaction delay
+// Assumes RAM_EXTRA_DELAY = RAM_LOG2_CYCLES*(TRANS_DELAY - 1) - 1? E.g. 3 nominally
+module tt_um_toivoh_test #( parameter RAM_LOG2_CYCLES=2, RAM_PINS=4, TRANS_DELAY=2 ) (
+		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
+		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
+		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
+		output wire [7:0] uio_out,  // IOs: Bidirectional Output path
+		output wire [7:0] uio_oe,   // IOs: Bidirectional Enable path (active high: 0=input, 1=output)
+		input  wire       ena,      // will go high when the design is enabled
+		input  wire       clk,      // clock
+		input  wire       rst_n     // reset_n - low to reset
+	);
+
+	localparam RAM_CYCLES = 2**RAM_LOG2_CYCLES;
+	localparam TRANS_COUNTER_BITS = 3;
+	localparam COUNTER_BITS = TRANS_COUNTER_BITS + RAM_LOG2_CYCLES; // 8 pixels, 4 subpixels. 4 subtransactions
+
+	localparam PIXELS_PER_TILE = 8;
+	localparam COLOR_BITS = 2;
+
+	wire reset = !rst_n;
+
+	assign uio_oe = 0;
+	assign uio_out = 0;
+
+	reg [15:0] addr;
+
+	reg [COUNTER_BITS-1:0] counter;
+	wire [COUNTER_BITS:0] next_counter = counter + 1;
+	wire counter_wrap = next_counter[COUNTER_BITS];
+
+	wire [RAM_LOG2_CYCLES-1:0] subtrans_counter = counter[RAM_LOG2_CYCLES-1:0];
+	wire [TRANS_COUNTER_BITS-1:0] trans_counter = counter[COUNTER_BITS-1:RAM_LOG2_CYCLES];
+	wire [TRANS_COUNTER_BITS-1:0] pixel_counter = trans_counter; // Assume 1 transaction per pixel
+
+	// Timed to feed do_tile_addr
+	wire do_tilemap_addr = (trans_counter == (-2*TRANS_DELAY & (2**TRANS_COUNTER_BITS - 1)));
+	// Timed to feed through data bits as address bits, make pixels arrive at trans_counter = 0
+	wire do_tile_addr = (trans_counter == (-1*TRANS_DELAY & (2**TRANS_COUNTER_BITS - 1)));
+	wire [RAM_PINS-1:0] addr_bits = do_tilemap_addr ? addr[subtrans_counter*RAM_PINS + RAM_PINS-1 -: RAM_PINS] : do_tile_addr ? data_bits : 'X;
+
+	wire [RAM_PINS-1:0] data_bits = ui_in[7 -: RAM_PINS];
+	reg [PIXELS_PER_TILE*COLOR_BITS-1:0] pixels;
+	reg [COLOR_BITS-1:0] pixel_out;
+
+	always @(posedge clk) begin
+		if (reset) begin
+			counter <= 0;
+			addr <= 0;
+		end else begin
+			counter <= next_counter[COUNTER_BITS-1:0];
+			addr <= addr + counter_wrap;
+
+			if (trans_counter == 0) pixels[subtrans_counter*RAM_PINS + RAM_PINS-1 -: RAM_PINS] <= data_bits;
+
+			if (subtrans_counter == RAM_CYCLES-1) pixel_out <= pixels[pixel_counter*COLOR_BITS + COLOR_BITS-1 -: COLOR_BITS];
+		end
+	end
+
+	assign uo_out = {addr_bits, {(8-2-RAM_PINS){1'b0}}, pixel_out};
 endmodule

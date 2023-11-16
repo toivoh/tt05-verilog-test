@@ -42,7 +42,7 @@ endmodule
 
 
 // testbench is controlled by test.py
-module tb #( parameter RAM_PINS=4, RAM_LOG2_CYCLES=2, RAM_ADDR_BITS=16, RAM_EXTRA_DELAY=3+4) ();
+module tb #( parameter RAM_PINS=4, RAM_LOG2_CYCLES=2, RAM_ADDR_BITS=16, RAM_EXTRA_DELAY=3) ();
 
     // this part dumps the trace to a vcd file that can be viewed with GTKWave
     initial begin
