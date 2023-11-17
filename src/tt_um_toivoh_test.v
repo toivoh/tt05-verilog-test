@@ -459,7 +459,7 @@ module tt_um_toivoh_test_np #( parameter CFG_ADDR_BITS = 6, X_BITS=11, Y_BITS=10
 endmodule
 */
 
-module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYCLES=2, TRANS_DELAY=2, X_BITS=9, Y_BITS=8, TMAP_X_BITS=6, TMAP_Y_BITS=5, LOG2_TILESIZE=3, COLOR_BITS=2 ) (
+module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYCLES=2, TRANS_DELAY=2, X_BITS=9, Y_BITS=8, PLANE_X_BITS=9, PLANE_Y_BITS=8, LOG2_TILESIZE=3, COLOR_BITS=2 ) (
 		input wire clk,
 		input wire reset,
 
@@ -470,23 +470,26 @@ module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYC
 		input wire [X_BITS-1:0] x,
 		input wire [Y_BITS-1:0] y,
 
-		input wire [TMAP_X_BITS+TMAP_Y_BITS-1:0] tilemap_addr0, tilemap_addr1,
-		input wire [LOG2_TILESIZE-1:0] x_offset0, x_offset1,
-		input wire [LOG2_TILESIZE-1:0] y_offset0, y_offset1,
+		input wire [PLANE_X_BITS-1:0] x_offset0, x_offset1,
+		input wire [PLANE_Y_BITS-1:0] y_offset0, y_offset1,
 
 		output [2*COLOR_BITS-1:0] pixel // output both planes for now
 	);
 
 	localparam TILESIZE = 2**LOG2_TILESIZE;
 	localparam RAM_CYCLES = 2**RAM_LOG2_CYCLES;
-
+	localparam TMAP_X_BITS = PLANE_X_BITS - LOG2_TILESIZE;
+	localparam TMAP_Y_BITS = PLANE_Y_BITS - LOG2_TILESIZE;
 
 	wire plane = x[0];
 
 	// Do we actually need separate adders for the planes? How to extract the correct bit position otherwise?
-	wire [LOG2_TILESIZE-1:0] tile_x0 = x[LOG2_TILESIZE-1:0] + x_offset0;
-	wire [LOG2_TILESIZE-1:0] tile_x1 = x[LOG2_TILESIZE-1:0] + x_offset1;
+	wire tile_x0_c, tile_x1_c;
+	wire [LOG2_TILESIZE-1:0] tile_x0, tile_x1;
+	assign {tile_x0_c, tile_x0} = x[LOG2_TILESIZE-1:0] + x_offset0;
+	assign {tile_x1_c, tile_x1} = x[LOG2_TILESIZE-1:0] + x_offset1;
 	wire [LOG2_TILESIZE-1:0] tile_x = plane == 0 ? tile_x0 : tile_x1;
+	wire tile_x_c = plane == 0 ? tile_x0_c : tile_x1_c;
 
 	// TODO: How to take handle lowest x_offset bits that get masked out?
 	wire [LOG2_TILESIZE-1:0] plane_counter = tile_x & ~1;
@@ -494,9 +497,13 @@ module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYC
 	wire do_tile_addr      = (plane_counter == (  -TRANS_DELAY & (2**LOG2_TILESIZE - 1)));
 	wire store_tile_pixels = (plane_counter == (  -TRANS_DELAY & (2**LOG2_TILESIZE - 1)));
 
-	wire [TMAP_X_BITS+TMAP_Y_BITS-1:0] tilemap_addr = plane == 0 ? tilemap_addr0 : tilemap_addr1;
-	wire [TMAP_X_BITS-1:0] tx = tilemap_addr[TMAP_X_BITS-1:0] + x[X_BITS-1:LOG2_TILESIZE];
-	wire [TMAP_Y_BITS-1:0] ty = tilemap_addr[TMAP_X_BITS+TMAP_Y_BITS-1 -: TMAP_Y_BITS] + y[Y_BITS-1:LOG2_TILESIZE];
+	wire [TMAP_X_BITS-1:0] x_offset_high = plane == 0 ? x_offset0[PLANE_X_BITS:LOG2_TILESIZE] : x_offset1[PLANE_X_BITS:LOG2_TILESIZE];
+	wire [TMAP_X_BITS-1:0] tx = ({x_offset_high, 1'b1} + {x[X_BITS-1:LOG2_TILESIZE], tile_x_c}) >> 1;
+
+	wire [PLANE_Y_BITS-1:0] y_offset = plane == 0 ? y_offset0 : y_offset1;
+	wire [PLANE_Y_BITS-1:0] y_sum = y + y_offset;
+	wire [TMAP_Y_BITS-1:0] ty = y_sum[PLANE_Y_BITS-1:LOG2_TILESIZE];
+
 	wire [TMAP_X_BITS+TMAP_Y_BITS-1:0] addr = {ty, tx};
 
 	assign addr_bits = do_tilemap_addr ? addr[subtrans_counter*ADDR_PINS + ADDR_PINS-1 -: ADDR_PINS] : do_tile_addr ? data_bits : 'X;
@@ -525,7 +532,7 @@ endmodule
 
 
 // 2 planes
-module tt_um_toivoh_test #( parameter CFG_ADDR_BITS = 6, X_BITS=11, Y_BITS=10, RAM_PINS=4, RAM_LOG2_CYCLES=2, TMAP_X_BITS=6, TMAP_Y_BITS=5, LOG2_TILESIZE=3 ) (
+module tt_um_toivoh_test #( parameter CFG_ADDR_BITS = 6, X_BITS=11, Y_BITS=10, RAM_PINS=4, RAM_LOG2_CYCLES=2, PLANE_X_BITS=9, PLANE_Y_BITS=8, LOG2_TILESIZE=3 ) (
 		input  wire [7:0] ui_in,    // Dedicated inputs - connected to the input switches
 		output wire [7:0] uo_out,   // Dedicated outputs - connected to the 7 segment display
 		input  wire [7:0] uio_in,   // IOs: Bidirectional Input path
@@ -583,22 +590,21 @@ module tt_um_toivoh_test #( parameter CFG_ADDR_BITS = 6, X_BITS=11, Y_BITS=10, R
 		.x(x), .y(y)
 	);
 
-	localparam CFG_BITS_PER_PLANE = TMAP_X_BITS+TMAP_Y_BITS+LOG2_TILESIZE*2;
-	wire [TMAP_X_BITS+TMAP_Y_BITS-1:0] tilemap_addr0, tilemap_addr1;
-	wire [LOG2_TILESIZE-1:0] x_offset0, x_offset1;
-	wire [LOG2_TILESIZE-1:0] y_offset0, y_offset1;
+	localparam CFG_BITS_PER_PLANE = PLANE_X_BITS + PLANE_Y_BITS;
+	wire [PLANE_X_BITS-1:0] x_offset0, x_offset1;
+	wire [PLANE_Y_BITS-1:0] y_offset0, y_offset1;
 
 	wire [CFG_BITS_PER_PLANE-1:0] cfg0 = cfg[  CFG_BITS_PER_PLANE-1 -: CFG_BITS_PER_PLANE];
 	wire [CFG_BITS_PER_PLANE-1:0] cfg1 = cfg[2*CFG_BITS_PER_PLANE-1 -: CFG_BITS_PER_PLANE];
-	assign {tilemap_addr0, x_offset0, y_offset0} = cfg0;
-	assign {tilemap_addr1, x_offset1, y_offset1} = cfg1;
+	assign {y_offset0, x_offset0} = cfg0;
+	assign {y_offset1, x_offset1} = cfg1;
 
-	tilemap_renderer_2p #( .ADDR_PINS(ADDR_PINS), .DATA_PINS(DATA_PINS), .TMAP_X_BITS(TMAP_X_BITS), .TMAP_Y_BITS(TMAP_Y_BITS), .LOG2_TILESIZE(LOG2_TILESIZE) ) renderer(
+	tilemap_renderer_2p #( .ADDR_PINS(ADDR_PINS), .DATA_PINS(DATA_PINS), .PLANE_X_BITS(PLANE_X_BITS), .PLANE_Y_BITS(PLANE_Y_BITS), .LOG2_TILESIZE(LOG2_TILESIZE) ) renderer(
 		.clk(clk), .reset(reset),
 		.addr_bits(addr_bits), .data_bits(data_bits),
 		.subtrans_counter({x[0], new_pixel}), .x(x[9:1]), .y(y[7:0]), // don't double pixels along y direction for now
-		.tilemap_addr0(tilemap_addr0), .x_offset0(x_offset0), .y_offset0(y_offset0),
-		.tilemap_addr1(tilemap_addr1), .x_offset1(x_offset1), .y_offset1(y_offset1),
+		.x_offset0(x_offset0), .y_offset0(y_offset0),
+		.x_offset1(x_offset1), .y_offset1(y_offset1),
 		.pixel(pixel_out)
 	);
 endmodule
