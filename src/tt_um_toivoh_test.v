@@ -486,8 +486,8 @@ module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYC
 	// Do we actually need separate adders for the planes? How to extract the correct bit position otherwise?
 	wire tile_x0_c, tile_x1_c;
 	wire [LOG2_TILESIZE-1:0] tile_x0, tile_x1;
-	assign {tile_x0_c, tile_x0} = x[LOG2_TILESIZE-1:0] + x_offset0;
-	assign {tile_x1_c, tile_x1} = x[LOG2_TILESIZE-1:0] + x_offset1;
+	assign {tile_x0_c, tile_x0} = x[LOG2_TILESIZE-1:0] + (x_offset0 & ~1);
+	assign {tile_x1_c, tile_x1} = x[LOG2_TILESIZE-1:0] + (x_offset1 & ~1);
 	wire [LOG2_TILESIZE-1:0] tile_x = plane == 0 ? tile_x0 : tile_x1;
 	wire tile_x_c = plane == 0 ? tile_x0_c : tile_x1_c;
 
@@ -511,6 +511,14 @@ module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYC
 	reg [TILESIZE*COLOR_BITS-1:0] pixels0, pixels1;
 	reg [2*COLOR_BITS-1:0] pixel_out;
 
+	wire [COLOR_BITS-1:0] raw_pixel0 = pixels0[tile_x0*COLOR_BITS + COLOR_BITS-1 -: COLOR_BITS];
+	wire [COLOR_BITS-1:0] raw_pixel1 = pixels1[tile_x1*COLOR_BITS + COLOR_BITS-1 -: COLOR_BITS];
+	reg [COLOR_BITS-1:0] delay_pixel0, delay_pixel1;
+
+	// TODO: same for attributes
+	wire [COLOR_BITS-1:0] pixel0 = x_offset0[0] == 0 ? raw_pixel0 : delay_pixel0;
+	wire [COLOR_BITS-1:0] pixel1 = x_offset0[1] == 0 ? raw_pixel1 : delay_pixel1;
+
 	always @(posedge clk) begin
 		if (reset) begin
 		end else begin
@@ -522,8 +530,10 @@ module tilemap_renderer_2p #( parameter ADDR_PINS=4, DATA_PINS = 4, RAM_LOG2_CYC
 		end
 
 		if (subtrans_counter == RAM_CYCLES-1) begin
-			pixel_out[  COLOR_BITS-1 -: COLOR_BITS] <= pixels0[tile_x0*COLOR_BITS + COLOR_BITS-1 -: COLOR_BITS];
-			pixel_out[2*COLOR_BITS-1 -: COLOR_BITS] <= pixels1[tile_x1*COLOR_BITS + COLOR_BITS-1 -: COLOR_BITS];
+			delay_pixel0 <= raw_pixel0;
+			delay_pixel1 <= raw_pixel1;
+			pixel_out[  COLOR_BITS-1 -: COLOR_BITS] <= pixel0;
+			pixel_out[2*COLOR_BITS-1 -: COLOR_BITS] <= pixel1;
 		end
 	end
 
